@@ -1,0 +1,142 @@
+The goal of this exercise is to create a table "customer" with the data for Column Families 'address: city, state' and 'order:date, numb' using HBase shell commands.
+
+----------------------------------------------------------------------------------------------------------------
+-- We need to start HBase daemons to be able to use HBase shell. You should have a shell script named
+-- start_hbase.sh in the '/root' directory of your access machine. Run an 'ls' command to verify the script 
+-- is there and then start HBase Master and RegionServer
+# /root/start_hbase.sh
+
+-- If the script is not present in your '/root' directory, verify that there is a script named hbase-daemon.sh
+-- in your '/usr/hdp/2.4.0.0-169/hbase/bin' directory (or probably /usr/hbase/bin if you are using Azure)
+-- and start HMaster and RegionServer manually using the following commands.
+# su hbase - -c "/usr/hdp/2.4.0.0-169/hbase/bin/hbase-daemon.sh --config /etc/hbase/conf start master; sleep 20"
+# su hbase - -c "/usr/hdp/2.4.0.0-169/hbase/bin/hbase-daemon.sh --config /etc/hbase/conf start regionserver"
+
+----------------------------------------------------------------------------------------------------------------
+
+-- Start HBase shell
+# hbase shell 
+
+-- Show cluster status. Can be "summary", "simple", or "detailed". The default is "summary".
+status
+
+-- Output this HBase version
+version
+
+-- Show the current HBase user.
+whoami
+
+-- List all tables in HBase. 
+list
+
+-- Optional regular expression parameter could be used to filter the output
+list 'i.*'
+
+-- Describe the named table.
+describe 'iemployee'
+
+-- Count the number of rows in a table.
+count 'iemployee'
+
+-- Scan a table
+scan 'iemployee'
+
+-- Create a new table 
+create 'customer', {NAME=>'addr'}, {NAME=>'order'}
+
+-- Use "describe" to get the description of the table.
+describe 'customer'
+
+-- Put some data into the table
+put  'customer',  'jsmith',  'addr:city', 'nashville'
+
+-- Use "get" to retrieve the data for 'jsmith'
+get  'customer', 'jsmith'
+
+-- Put more data into the table
+put   'customer',  'jsmith',  'addr:state', 'TN'
+put   'customer',  'jsmith',  'order:numb', '1234'
+put   'customer',  'jsmith',  'order:date', '10-18-2016'
+
+-- Use "get" to retrieve the data for 'jsmith'
+get  'customer', 'jsmith'
+
+-- Note that "get" gets all the data for the row. Retrieve one column family for 'jsmith'
+get  'customer', 'jsmith', {COLUMNS=>['addr']} 
+
+-- Retrieve one specific column for 'jsmith'
+get  'customer', 'jsmith', {COLUMNS=>['order:numb']} 
+
+-- Alter table to store more versions in the order column family
+alter  'customer' , NAME => 'order', VERSIONS => 5
+
+-- Use "describe" to get the description of the table.
+describe  'customer'
+
+-- Enter more order numbers
+put   'customer',  'jsmith',  'order:numb', '1235'
+put   'customer',  'jsmith',  'order:numb', '1236'
+put   'customer',  'jsmith',  'order:numb', '1237'
+put   'customer',  'jsmith',  'order:numb', '1238'
+
+-- Retrieve order number column cells
+get   'customer', 'jsmith', {COLUMNS=>['order:numb']}
+
+-- Note that you are getting the data for only one version per cell. Retieve more versions.
+get  'customer', 'jsmith', {COLUMNS=>['order:numb'], VERSIONS => 5}
+
+-- Put more data for different rowkey userids
+put   'customer',  'njones',  'addr:city', 'miami'
+put   'customer',  'njones',  'addr:state', 'FL'
+put   'customer',  'njones',  'order:numb', '5555'
+put   'customer',  'tsimmons',  'addr:city', 'dallas'
+put   'customer',  'tsimmons',  'addr:state', 'TX'
+put   'customer',  'jsmith',  'addr:city', 'denver'
+put   'customer',  'jsmith',  'addr:state', 'CO'
+put   'customer',  'jsmith',  'order:numb', '6666'
+put   'customer',  'njones',  'addr:state', 'TX'
+put   'customer',  'amiller', 'addr:state', 'TX'
+
+-- Use "scan" to retrieve all rows, all columns of data for the table 
+scan   'customer'
+
+-- Retrieve all rows, addr column family
+scan   'customer',  {COLUMNS=>['addr']}
+
+-- Retrieve all rows for order number column, 5 versions
+scan   'customer',  {COLUMNS=>['order:numb'], VERSIONS => 5}
+
+-- Retrieve rows with rowkey starting with 'njo', addr column family
+scan  'customer',  {STARTROW => 'njo', COLUMNS=>['addr'] }
+
+-- Retrieve rows with rowkey starting with 'j', stop before 't'
+scan  'customer',  { STARTROW => 'j', STOPROW => 't'}
+
+--Retrieve 2 rows with rowkey starting with 'a'
+scan  'customer',  { STARTROW => 'a', LIMIT => 2}
+
+-- Retrieve rows that include 'sim' in the rowkey id
+ scan 'customer', {FILTER => "RowFilter(=, 'substring:sim')"}
+
+-- Count the number of rows in the table
+count  'customer'
+
+-- Delete data from the table. First,let's see the data we want to delete
+get   'customer',  'njones'
+
+-- Delete a column from a row. Then check what is deleted
+delete   'customer',  'njones',  'addr:city'	
+get   'customer',  'njones'
+
+-- Delete a row. Scan the data before and after the delete to see the difference
+scan  'customer'
+deleteall   'customer',  'amiller' 
+scan 'customer'
+
+-- Delete a table with the HBase shell. 
+-- To delete a table, first disable it and then delete it.
+disable 'customer'
+drop 'customer'
+
+-- Leave HBase shell
+quit
